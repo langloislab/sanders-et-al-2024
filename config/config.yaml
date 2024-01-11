@@ -1,0 +1,19 @@
+#Config file to accompany dirty mouse metagenomic/viral discovery snakemake pipeline for quantifying and classifying Trinity transcripts
+
+in_dir: /path/to/raw/read/directory #Directory containing raw fastq files from RNAseq
+ref_genome: /path/to/ref/genome #Location of indexed genome for STAR (done separately from this pipeline)
+
+sample_file: "../config/norway_samples.csv"
+experiment: "norway"
+
+trimmomatic: #Trimmomatic parameters
+    threads: 32
+    other: ILLUMINACLIP:../ref_files/all_illumina_adapters.fa:2:30:10  LEADING:10 TRAILING:10 SLIDINGWINDOW:4:20 MINLEN:38
+
+trinity:
+    scratch_dir: /path/to/place/Trinity/intermediate/files
+
+blast:
+    db: /path/to/blast/db
+    tax_nodes: /path/to/taxdump/nodes.dmp
+    tax_names: /path/to/taxdump/names.dmp

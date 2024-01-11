@@ -1,0 +1,82 @@
+---
+title: "Norway RNAseq analysis"
+author: "Frances Shepherd"
+date: "7/3/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+```{r read species data}
+library(tidyr)
+library(stringr)
+library(dplyr)
+library(ggplot2)
+library(forcats)
+library(gridExtra)
+setwd("")
+
+`%ni%` <- Negate(`%in%`)
+
+#Read in file of viral families to exclude from analysis. Includes phages, insect/plant infecting viruses, or probable contaminants (like flu)
+exclude <- read.csv("ref_files/RNAseq_excluded_viral_families.csv", header=FALSE)[,1]
+
+#read in sample metadata table
+meta <- read.csv("../config/norway_samples.csv", header = TRUE, stringsAsFactors = TRUE)
+meta$file <- paste("counts.",str_replace(meta$sample, "-","."),sep = "")
+
+#Read in species count dataframe, pull out viruses only, turn to long format
+norway_sp <- read.csv("fsc026_sp_counts.csv", header=TRUE, stringsAsFactors = TRUE) %>%
+  filter(superkingdom == "Viruses"  & family != "" & species %ni% c("uncultured human fecal virus", "Human gammaherpesvirus 4")) %>%
+  select(-c("superkingdom", "phylum", "class", "order", "genus")) %>%
+  droplevels() %>%
+  tidyr::gather(., key="file", value=transcripts_count, meta$file[1]:meta$file[length(meta$file)]) %>%
+  left_join(meta, by = "file") %>%
+  mutate(log_transcripts_count = log10(transcripts_count+1)) %>%
+  filter(family %ni% exclude) %>%
+  group_by(species) %>%
+  filter(any(transcripts_count > 0)) %>%
+  droplevels() %>%
+  mutate(species_new = recode_factor(species, 
+                                     "Murine astrovirus" = "Murine astrovirus 1",
+                                     "Norwalk virus" = "Murine norovirus",
+                                     "Murine coronavirus" = "Murine Hepatitis Virus",
+                                     "Aichivirus A" = "Murine kobuvirus 1",
+                                     "Cardiovirus B" = "TMEV",
+                                     "Rodent Cardiovirus" = "TMEV",
+                                     "Putative Murine Kobuvirus 2" = "Murine kobuvirus 2",
+                                     "Dependoparvovirus sp." = "Dependoparvovirus sp.",
+                                     "Rodent dependoparvovirus 1" = "Dependoparvovirus sp.",
+                                     "Rodent dependoparvovirus 2" = "Dependoparvovirus sp.",
+                                     "Kobuvirus sp." = "Murine kobuvirus 1",
+                                     "Canine kobuvirus" = "Murine kobuvirus 1",
+                                     "Kobuvirus sp." = "Murine kobuvirus 1",
+                                     "Parvovirinae sp." = "Murine parvovirus",
+                                     "Rodent protoparvovirus 1" = "Murine parvovirus",
+                                     "Mouse adeno-associated virus 1" = "Dependoparvovirus sp.",
+                                     "Mouse adenovirus 2 strain K87" = "Murine adenovirus 2",
+                                     "Adeno-associated virus Croatia cul1_12" = "Dependoparvovirus sp.",
+                                     "Rodent dependoparvovirus 1" = "Dependoparvovirus sp.",
+                                     "Murine mastadenovirus B" = "Murine adenovirus 2")) %>% #Rename some of the viral species to be consistent
+  group_by(labID, species_new) %>% #Calculate new transcript levels within the "standardized" species names
+  mutate(transcripts_count_new = sum(transcripts_count)) %>% #Summarize the transcripts at the level of the new spp name
+  ungroup() %>% #Ungroup to keep metadata available
+  distinct(sample, genotype, condition, labID, species_new, transcripts_count_new) %>% #Drop duplicate species_new rows
+  mutate(log_transcripts_count_new = log10(transcripts_count_new + 1)) %>%
+  as.data.frame()
+
+
+ggplot(data=norway_sp, aes(x = labID, y = fct_rev(species_new), fill = log_transcripts_count_new))+
+  geom_tile(color="black") +
+  scale_fill_gradient(name = "log10\ntranscript count",
+                      limits = c(0,6),
+                      na.value = "white", low="white", high = "red") + 
+  theme_bw() +
+  labs(title = "Norway RNAseq results-\nspecies level", x = "Mouse ID", y = "Virus species") +
+  theme(plot.title = element_text(size = 15),
+        panel.grid.major = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text = element_text(size = 7)) 
+```

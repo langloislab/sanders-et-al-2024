@@ -1,0 +1,8 @@
+channels:
+    - conda-forge
+    - bioconda
+    - default
+dependencies:
+    - python=2.7
+    - pyfasta
+    - blast=2.13.0

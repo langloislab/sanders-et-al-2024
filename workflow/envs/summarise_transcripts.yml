@@ -1,0 +1,10 @@
+channels:
+  - conda-forge
+  - bioconda
+  - r
+  - default
+
+dependencies:  
+  - r=4.1.0
+  - r-essentials
+  - bioconductor-tximport
